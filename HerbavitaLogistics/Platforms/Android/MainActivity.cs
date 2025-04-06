@@ -8,21 +8,27 @@ namespace HerbavitaLogistics;
 public class MainActivity : MauiAppCompatActivity
 {
 
-    // Platforms/Android/MainActivity.cs
+    /// Platforms/Android/MainActivity.cs
+    protected override void OnCreate(Bundle savedInstanceState)
+    {
+        base.OnCreate(savedInstanceState);
+
+        // Configure DataWedge on startup
+        DataWedgeProfileHelper.ConfigureProfile(
+            "LogisticsApp",
+            PackageName,
+            $"{PackageName}.{nameof(MainActivity)}");
+    }
+
     protected override void OnResume()
     {
         base.OnResume();
+        DataWedgeProfileHelper.ToggleScanner(true); // Enable scanner when app is foregrounded
+    }
 
-        // Check DataWedge status before configuring
-        var dwStatusIntent = new Intent();
-        dwStatusIntent.SetAction("com.symbol.datawedge.api.ACTION");
-        dwStatusIntent.PutExtra("com.symbol.datawedge.api.GET_DATAWEDGE_STATUS", "");
-        SendBroadcast(dwStatusIntent);
-
-        // Configure profile only after confirming DataWedge is ready
-        DataWedgeProfileHelper.ConfigureDataWedgeProfile(
-            "WarehouseApp",
-            PackageName,
-            Class.Name);
+    protected override void OnPause()
+    {
+        DataWedgeProfileHelper.ToggleScanner(false); // Disable scanner when app is backgrounded
+        base.OnPause();
     }
 }

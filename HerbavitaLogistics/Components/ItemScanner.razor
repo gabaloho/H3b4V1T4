@@ -1,81 +1,28 @@
 @page "/scan"
-@inject AuthState Auth
 @using MudBlazor
 @using HerbavitaLogistics.Messages
 @using HerbavitaLogistics.Models
-@using HerbavitaLogistics.Services
-@using HerbavitaLogistics.Components
+@inject AuthState Auth
+@inject NavigationManager Nav
 @inject IApiService ApiService
 @implements IDisposable
 
-
-<MudPaper Elevation="3">
-    <MudText Typo="Typo.h6">Scanning as: @Auth.CurrentEmployee?.Name</MudText>
-    <ScanResultDisplay />
-    <MudButton OnClick="Logout">Log Out</MudButton>
-</MudPaper>
-
-
-<MudSnackbar @bind-IsVisible="_showDuplicateWarning" Severity="Warning">
-    Duplicate scan detected!
-</MudSnackbar>
-
-<div class="scan-results">
-    @if (_lastScan != null)
-    {
-        <div class="@(_lastScan.IsValid ? "valid-scan" : "invalid-scan")">
-            <p>@_lastScan.ItemCode</p>
-            <p>@_lastScan.Message</p>
-        </div>
-    }
-</div>
-
-@code {
-    private ItemValidationResult? _lastScan;
-    private bool _showDuplicateWarning;
-
-    protected override void OnInitialized()
-    {
-        WeakReferenceMessenger.Default.Register<ItemValidatedMessage>(this, HandleValidation);
-        WeakReferenceMessenger.Default.Register<ScanRejectedMessage>(this, HandleRejection);
-    }
-
-    private void HandleValidation(object recipient, ItemValidatedMessage message)
-    {
-        _lastScan = message.Result;
-        StateHasChanged();
-    }
-
-    private void HandleRejection(object recipient, ScanRejectedMessage message)
-    {
-        _showDuplicateWarning = true;
-        StateHasChanged();
-    }
-}
-@code {
-    private void Logout()
-    {
-        Auth.Logout();
-        Nav.NavigateTo("/auth");
-    }
-}
-
-
-
-
-<div class="scanner-container">
+<MudPaper Elevation="3" Class="scanner-container">
     <div class="header">
-        <MudText Typo="Typo.h6">Logged in as: @_currentUser?.Name</MudText>
-        <MudButton @onclick="Logout" Variant="Variant.Text">Log Out</MudButton>
+        <MudText Typo="Typo.h6">Logged in as: @Auth.CurrentEmployee?.Name</MudText>
+        <MudButton OnClick="Logout" Variant="Variant.Text">Log Out</MudButton>
     </div>
 
     <div class="scanner-area">
         @if (_lastScan != null)
         {
             <div class="scan-result @(_lastScan.IsValid ? "valid" : "invalid")">
-                <MudText>@_lastScan.ItemCode</MudText>
-                <MudText>@_lastScan.ItemName</MudText>
-                <MudText Color="Color.Error">@_lastScan.Message</MudText>
+                <MudText Typo="Typo.subtitle1">@_lastScan.ItemCode</MudText>
+                <MudText Typo="Typo.body1">@_lastScan.ItemName</MudText>
+                @if (!_lastScan.IsValid)
+                {
+                    <MudAlert Severity="Severity.Error">@_lastScan.Message</MudAlert>
+                }
             </div>
         }
         else
@@ -86,26 +33,58 @@
             </div>
         }
     </div>
-</div>
+</MudPaper>
+
+<MudSnackbar @bind-IsVisible="_showDuplicateWarning" Severity="Severity.Warning">
+    Duplicate scan detected!
+</MudSnackbar>
 
 @code {
-    private UserInfo? _currentUser;
-    private ItemScanResult? _lastScan;
+    private ItemValidationResult? _lastScan;
+    private bool _showDuplicateWarning;
+    private Timer? _scanResetTimer;
 
     protected override void OnInitialized()
     {
-        _currentUser = AuthState.CurrentUser;
-        WeakReferenceMessenger.Default.Register<ItemScannedMessage>(this, HandleScan);
+        WeakReferenceMessenger.Default.Register<ItemValidatedMessage>(this, HandleValidation);
+        WeakReferenceMessenger.Default.Register<ScanRejectedMessage>(this, HandleRejection);
     }
 
-    private void HandleScan(object recipient, ItemScannedMessage message)
+    private void HandleValidation(object recipient, ItemValidatedMessage message)
     {
         _lastScan = message.Result;
+        _showDuplicateWarning = false;
+        ResetScanDisplayAfterDelay();
         StateHasChanged();
+    }
+
+    private void HandleRejection(object recipient, ScanRejectedMessage message)
+    {
+        _showDuplicateWarning = true;
+        ResetScanDisplayAfterDelay();
+        StateHasChanged();
+    }
+
+    private void ResetScanDisplayAfterDelay()
+    {
+        _scanResetTimer?.Dispose();
+        _scanResetTimer = new Timer(_ =>
+        {
+            _lastScan = null;
+            InvokeAsync(StateHasChanged);
+        }, null, 3000, Timeout.Infinite);
+    }
+
+    private void Logout()
+    {
+        Auth.Logout();
+        Nav.NavigateTo("/auth");
     }
 
     public void Dispose()
     {
-        WeakReferenceMessenger.Default.Unregister<ItemScannedMessage>(this);
+        _scanResetTimer?.Dispose();
+        WeakReferenceMessenger.Default.Unregister<ItemValidatedMessage>(this);
+        WeakReferenceMessenger.Default.Unregister<ScanRejectedMessage>(this);
     }
 }

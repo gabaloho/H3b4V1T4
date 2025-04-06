@@ -13,3 +13,10 @@ public class ApiService : IApiService
         return await _http.GetFromJsonAsync<ItemValidationResult>($"/api/items/validate?barcode={barcode}");
     }
 }
+
+// Services/IApiService.cs
+public interface IApiService
+{
+    Task<AuthResult> ValidateEmployeeAsync(string badgeId);
+    Task<ItemValidationResult> ValidateItemAsync(string barcode);
+}

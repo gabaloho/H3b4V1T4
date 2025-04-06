@@ -25,3 +25,28 @@ public class EmployeeService
 }
 
 public record EmployeeValidationResult(Employee? Employee, string? Error);
+
+public class EmployeeValidationService
+{
+    public async Task<ValidationResult> ValidateEmployeeAsync(string badgeId)
+    {
+        try
+        {
+            var employee = await _api.GetEmployeeByBadgeIdAsync(badgeId);
+            if (employee == null || !employee.IsActive)
+                return ValidationResult.Fail("Invalid or inactive badge");
+
+            return ValidationResult.Success(employee);
+        }
+        catch (HttpRequestException)
+        {
+            return ValidationResult.Fail("Connection error");
+        }
+    }
+}
+
+public record ValidationResult(bool IsSuccess, Employee? Employee, string? ErrorMessage)
+{
+    public static ValidationResult Success(Employee e) => new(true, e, null);
+    public static ValidationResult Fail(string error) => new(false, null, error);
+}

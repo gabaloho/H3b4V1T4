@@ -1,134 +1,80 @@
 @page "/auth"
-@inject IApiService Api
+@using MudBlazor
+@inject IApiService ApiService
 @inject AuthState Auth
 @inject NavigationManager Nav
-@inject IEmployeeService EmployeeService
-@inject IEmployeeApiService _api
-@inject IEmployeeService EmployeeService
-@inject IEmployeeApiService _api
-@inject IEmployeeService EmployeeService
-@inject IEmployeeApiService _api
-@inject IEmployeeService EmployeeService
-@inject IEmployeeApiService _api
-@inject IAuthService AuthService
-@inject IApiService ApiService
 @implements IDisposable
 
-
-<MudText Typo="Typo.h6">Scan Your Badge</MudText>
-@if (Auth.CurrentEmployee != null)
-{
-<MudAlert Severity="Severity.Success">Welcome, @Auth.CurrentEmployee.Name</MudAlert>
-<MudButton OnClick="() => Nav.NavigateTo(" /scan")">Continue</MudButton>
-<MudAlert Severity="@_severity" Visible="@_showError">@_errorMessage</MudAlert>
-
-@code {
-    private string _errorMessage = "";
-    private Severity _severity;
-    private bool _showError;
-
-    protected override void OnInitialized()
-    {
-        MessagingCenter.Subscribe<object, string>(this, "ScanReceived", OnScan);
-    }
-
-    private async void OnScan(object sender, string badgeId)
-    {
-        if (Auth.CurrentEmployee != null) return;
-
-        var employee = await _api.ValidateEmployeeAsync(badgeId);
-        if (employee == null)
-        {
-            _severity = Severity.Error;
-            _errorMessage = "Invalid badge";
-            _showError = true;
-        }
-        else
-        {
-            Auth.Login(employee);
-            Nav.NavigateTo("/scan");
-        }
-        StateHasChanged();
-    }
-}
-
-
-<div class="auth-panel">
-    <h3>Scan Your Badge</h3>
-    @if (_isLoading)
-    {
-        <p>Verifying...</p>
-    }
-</div>
-
-@code {
-    private bool _isLoading;
-
-    protected override void OnInitialized()
-    {
-        MessagingCenter.Subscribe<object, string>(this, "ScanReceived", OnScanReceived);
-    }
-
-    private async void OnScanReceived(object sender, string scanData)
-    {
-        _isLoading = true;
-        await AuthService.AuthenticateAsync(scanData);
-        _isLoading = false;
-    }
-}
-
-<div class="auth-container">
-    <h3>Scan Your Badge</h3>
+<MudPaper Elevation="3" Class="auth-container">
+    <MudText Typo="Typo.h4" Class="text-center mb-4">Scan Your Badge</MudText>
 
     @if (_isLoading)
     {
-        <div class="scan-status">
-            <p>Verifying badge...</p>
+        <div class="text-center">
             <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            <MudText Typo="Typo.body1">Verifying badge...</MudText>
         </div>
     }
     else if (_errorMessage != null)
     {
-        <div class="error-message">
-            <MudAlert Severity="Severity.Error">@_errorMessage</MudAlert>
-            <MudButton @onclick="ResetScan" Variant="Variant.Filled">Try Again</MudButton>
-        </div>
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="ResetScan">
+            Try Again
+        </MudButton>
+    }
+    else if (Auth.CurrentEmployee != null)
+    {
+        <MudAlert Severity="Severity.Success" Class="mb-4">
+            Welcome, @Auth.CurrentEmployee.Name
+        </MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="NavigateToScanner">
+            Continue to Scanning
+        </MudButton>
     }
     else
     {
-        <div class="scan-prompt">
-            <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Large" />
-            <p>Present your badge to the scanner</p>
+        <div class="text-center">
+            <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Large" Class="mb-2" />
+            <MudText Typo="Typo.body1">Present your badge to the scanner</MudText>
         </div>
     }
-</div>
+</MudPaper>
 
 @code {
-    private bool _isLoading;
-    private string? _errorMessage;
+    private bool _isLoading = false;
+    private string? _errorMessage = null;
 
     protected override void OnInitialized()
     {
-        WeakReferenceMessenger.Default.Register<ScanReceivedMessage>(this, HandleScan);
+        MessagingCenter.Subscribe<object, string>(this, "ScanReceived", HandleScan);
     }
 
-    private async void HandleScan(object recipient, ScanReceivedMessage message)
+    private async void HandleScan(object sender, string scanData)
     {
+        if (Auth.CurrentEmployee != null) return;
+
         _isLoading = true;
         _errorMessage = null;
         StateHasChanged();
 
         try
         {
-            var result = await ApiService.AuthenticateAsync(message.ScanData);
-            if (!result.IsSuccess)
+            var result = await ApiService.ValidateEmployeeAsync(scanData);
+
+            if (result.IsSuccess)
             {
-                _errorMessage = result.ErrorMessage;
+                Auth.Login(result.Employee);
+                // Don't navigate here - let UI update first
+            }
+            else
+            {
+                _errorMessage = result.ErrorMessage ?? "Invalid badge";
             }
         }
-        catch
+        catch (Exception ex)
         {
-            _errorMessage = "Connection failed";
+            _errorMessage = "Connection error. Please try again.";
+            Console.WriteLine($"Auth error: {ex.Message}");
         }
         finally
         {
@@ -137,8 +83,19 @@
         }
     }
 
+    private void ResetScan()
+    {
+        _errorMessage = null;
+        StateHasChanged();
+    }
+
+    private void NavigateToScanner()
+    {
+        Nav.NavigateTo("/scan");
+    }
+
     public void Dispose()
     {
-        WeakReferenceMessenger.Default.Unregister<ScanReceivedMessage>(this);
+        MessagingCenter.Unsubscribe<object>(this, "ScanReceived");
     }
 }

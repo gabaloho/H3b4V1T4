@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HerbavitaLogistics")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dd9c8d606f0de91a8d59c08a17ab8158b6a22277")]
 [assembly: System.Reflection.AssemblyProductAttribute("HerbavitaLogistics")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HerbavitaLogistics")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -33,3 +33,24 @@ public sealed class AuthState
 }
 
 public record UserInfo(string Id, string Name, string Role);
+
+public class AuthState
+{
+    public Employee? CurrentEmployee { get; private set; }
+
+    public event Action? OnChange;
+
+    public void Login(Employee employee)
+    {
+        CurrentEmployee = employee;
+        NotifyStateChanged();
+    }
+
+    public void Logout()
+    {
+        CurrentEmployee = null;
+        NotifyStateChanged();
+    }
+
+    private void NotifyStateChanged() => OnChange?.Invoke();
+}
